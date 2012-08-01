@@ -1,0 +1,38 @@
+<?php
+
+/**
+ * @file
+ * Implementation of hook_install().
+ */
+function date_range_install() {
+  drupal_load('module', 'content');
+  content_notify('install', 'date_range');
+}
+
+/**
+ * Implementation of hook_uninstall().
+ */
+function date_range_uninstall() {
+  drupal_load('module', 'content');
+  content_notify('uninstall', 'date_range');
+}
+
+/**
+ * Implementation of hook_enable().
+ *
+ * Notify content module when this module is enabled.
+ */
+function date_range_enable() {
+  drupal_load('module', 'content');
+  content_notify('enable', 'date_range');
+}
+
+/**
+ * Implementation of hook_disable().
+ *
+ * Notify content module when this module is disabled.
+ */
+function date_range_disable() {
+  drupal_load('module', 'content');
+  content_notify('disable', 'date_range');
+}

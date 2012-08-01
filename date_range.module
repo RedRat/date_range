@@ -1,0 +1,226 @@
+<?php
+
+/**
+ * @file
+ * Date Range: Defines a CCK date range field type.
+ */
+
+require_once dirname(__FILE__) . '/includes/common.inc';
+
+//==========================================//
+// DEFINING A FIELD
+//==========================================//
+
+/**
+ * Implementation of hook_field_info().
+ */
+function date_range_field_info() {
+  return array(
+    // The machine name of the field, no more than 32 characters.
+    'date_range' => array(
+      // The human-readable label of the field that will be seen in the Manage fields screen.
+      'label' => t('Date range field'),
+      // A description of what type of data the field stores.
+      'description' => t('Store date range in the database.'),
+      // An icon to use in Panels.
+//      'content_icon' => 'icon_content_text.png',
+    ),
+  );
+}
+
+/**
+ * Implementation of hook_field_settings().
+ */
+function date_range_field_settings($op, $field) {
+  switch ($op) {
+    case 'database columns':
+      $columns['date1'] = array(
+        'type' => 'datetime',
+        'not null' => FALSE,
+        'sortable' => TRUE,
+        'views' => TRUE,
+      );
+      $columns['date2'] = $columns['date1'];
+      return $columns;
+  }
+}
+
+/**
+ * Implementation of hook_field().
+ */
+function date_range_field($op, &$node, $field, &$items, $teaser, $page) {
+  switch ($op) {
+    case 'validate':
+//      dpm($items, 'DateRange field validate $items');
+//      dpm($field, 'DateRange field validate $field');
+      if (is_array($items)) {
+        foreach ($items as $delta => $item) {
+          $error_element = isset($item['_error_element']) ? $item['_error_element'] : '';
+          if (is_array($item) && isset($item['_error_element'])) unset($item['_error_element']);
+          if (!empty($item['value'])) {
+            if (!($var = _string_to_range($item['value'])))
+              form_set_error($error_element, t('%name: Invalid date range format.', array('%name' => $field['widget']['label'])));
+            if (!checkdate($var['month1'], $var['day1'], $var['year1']))
+              form_set_error($error_element, t('%name: Invalid day of month for first date.', array('%name' => $field['widget']['label'])));
+            if (!checkdate($var['month2'], $var['day2'], $var['year2']))
+              form_set_error($error_element, t('%name: Invalid day of month for second date.', array('%name' => $field['widget']['label'])));
+            if ($var['year1'].$var['month1'].$var['day1'] > $var['year2'].$var['month2'].$var['day2'])
+              form_set_error($error_element, t('%name: First date must be lesser then second date.', array('%name' => $field['widget']['label'])));
+          }
+        }
+      }
+//      dpm($items, 'DateRange field validate $items');
+      return $items;
+    case 'presave':
+      if (is_array($items)) {
+        foreach ($items as $delta => $item) {
+          if (empty($item['value'])) {
+//            dpm($item, 'Empty item in presave! Call system administrator!');
+          } else {
+            $var = _string_to_range($item['value']);
+            $items[$delta]['date1'] = $var['year1'].'-'.$var['month1'].'-'.$var['day1'].' 00:00:00';
+            $items[$delta]['date2'] = $var['year2'].'-'.$var['month2'].'-'.$var['day2'].' 23:59:59';
+          }
+        }
+      }
+//      dpm($node, 'DateRange field presave $node');
+//      dpm($field, 'DateRange field validate $field');
+//      dpm($items, 'DateRange field presave $items');
+      break;
+  }
+}
+
+/**
+ * Implementation of hook_content_is_empty().
+ */
+function date_range_content_is_empty($item, $field) {
+//  dpm($item, 'DateRange is empty $item');
+  if (empty($item['value'])) {
+    return TRUE;
+  }
+  return FALSE;
+}
+
+//==========================================//
+// DEFINING A FORMATTER
+//==========================================//
+
+/**
+ * Implementation of hook_theme().
+ */
+function date_range_theme() {
+  return array(
+    // Themes for the formatters.
+    'date_range_formatter_default' => array(
+      'arguments' => array('element' => NULL),
+    ),
+    'date_range_formatter_expanded' => array(
+      'arguments' => array('element' => NULL),
+    ),
+  );
+}
+
+/**
+ * Implementation of hook_field_formatter_info().
+ */
+function date_range_field_formatter_info() {
+  return array(
+    // The machine name of the formatter.
+    'default' => array(
+      // The human-readable label shown on the Display fields screen.
+      'label' => t('Default'),
+      // An array of the field types this formatter can be used on.
+      'field types' => array('date_range'),
+      // CONTENT_HANDLE_CORE: CCK will pass the formatter a single value.
+      // CONTENT_HANDLE_MODULE: CCK will pass the formatter an array of all the values.
+      // None of CCK's core formatters use multiple values, that is an option
+      // available to other modules that want it.
+      'multiple values' => CONTENT_HANDLE_CORE,
+    ),
+    'expanded' => array(
+      'label' => t('Expanded'),
+      'field types' => array('date_range'),
+      'multiple values' => CONTENT_HANDLE_CORE,
+    ),
+  );
+}
+
+/**
+ * Theme function for 'default' date range field formatter.
+ */
+function theme_date_range_formatter_default($element) {
+//  dpm($element['#item'], 'DateRange default formatter $element[\'#item\']');
+  return (isset($element['#item']['value'])) ? $element['#item']['value'] : _range_to_string($element['#item']['date1'], $element['#item']['date2']);
+}
+
+/**
+ * Theme function for 'expanded' date range field formatter.
+ */
+function theme_date_range_formatter_expanded($element) {
+  return (isset($element['#item']['value'])) ? $element['#item']['value'] : _range_to_string($element['#item']['date1'], $element['#item']['date2'], TRUE);
+}
+
+//function theme_date_range_textfield($element) {
+//  dpm($element, 'DateRange theme textfield $element');
+//  return $element['#children'];
+//}
+
+//==========================================//
+// DEFINING A WIDGET
+//==========================================//
+
+/**
+ * Implementation of hook_widget_info().
+ */
+function date_range_widget_info() {
+  return array(
+    // The machine name of the widget, no more than 32 characters.
+    'date_range_textfield' => array(
+      // The human-readable label of the field that will be seen in the Manage fields screen.
+      'label' => t('Date range textfield'),
+      // An array of the field types this widget can be used with.
+      'field types' => array('date_range'),
+      // Who will handle multiple values, default is core.
+      // 'CONTENT_HANDLE_MODULE' means the module does it.
+      // See optionwidgets for an example of a module that handles its own multiple values.
+      'multiple values' => CONTENT_HANDLE_CORE,
+      'callbacks' => array(
+        // Who will create the default value, default is core.
+        // 'CONTENT_CALLBACK_CUSTOM' means the module does it.
+        // 'CONTENT_CALLBACK_NONE' means this widget has no default value.
+        'default value' => CONTENT_CALLBACK_DEFAULT,
+      ),
+    ),
+  );
+}
+
+/**
+ * Implementation of hook_widget().
+ */
+function date_range_widget(&$form, &$form_state, $field, $items, $delta = 0) {
+  $element['value'] = array(
+    '#type' => 'textfield',
+    '#default_value' => isset($items[$delta]['value']) ? $items[$delta]['value'] : _range_to_string($items[$delta]['date1'], $items[$delta]['date2']),
+    '#size' => FL,
+    '#maxlength' => SL,
+    '#attributes' => array('class' => 'text'),
+    '#title' => t($field['widget']['label']),
+    '#description' => t($field['widget']['description']),
+  );
+
+  // Used so that hook_field('validate') knows where to flag an error in deeply nested forms.
+  if (empty($form['#parents'])) {
+    $form['#parents'] = array();
+  }
+
+  $element['_error_element'] = array(
+    '#type' => 'value',
+    '#value' => implode('][', array_merge($form['#parents'], array($field['field_name'], $delta, 'value'))),
+  );
+
+//  dpm($form, 'DateRange widget $form');
+//  dpm($field, 'DateRange widget $field');
+//  dpm($items, 'DateRange widget $items');
+//  dpm($element, 'DateRange widget $element');
+  return $element;
+}

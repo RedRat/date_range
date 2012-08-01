@@ -1,0 +1,6 @@
+name = Date range field
+description = Defines a date range field type.
+dependencies[] = content
+package = CCK
+core = 6.x
+version = 6.x-1.0-beta1
